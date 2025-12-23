@@ -168,124 +168,164 @@ button.done{
 </div>
 
 <script>
-const levels=[
-  {s:12,m:0.12},
-  {s:22,m:0.20},
-  {s:50,m:0.30}
-];
+  const levels = [
+    { s:10, m:0.12, safe:false }, // Лёгкий
+      { s:22, m:0.05, safe:true  }, // Сложный
+        { s:50, m:0.05, safe:true  }  // Хардкор
+        ];
 
-let level=0,size,minesCount;
-let grid=[],opened=0,flags=0,gameOver=false,timer=0,interval;
+        let level=0, size, minesCount;
+        let grid=[], opened=0, flags=0;
+        let gameOver=false, timer=0, interval;
+        let firstClick=true;
 
-const gridEl=document.getElementById("grid");
+        const gridEl = document.getElementById("grid");
 
-function start(l){
-  level=l;
-  clearInterval(interval);
-  grid=[];opened=0;flags=0;timer=0;gameOver=false;
+        function start(l){
+          level=l;
+            clearInterval(interval);
 
-  size=levels[level].s;
-  minesCount=Math.floor(size*size*levels[level].m);
+              size = levels[level].s;
+                minesCount = Math.floor(size*size*levels[level].m);
 
-  gridEl.innerHTML="";
-  gridEl.style.gridTemplateColumns=`repeat(${size},1fr)`;
+                  grid=[]; opened=0; flags=0;
+                    gameOver=false; timer=0;
+                      firstClick=true;
 
-  mines.textContent="💣 "+minesCount;
-  time.textContent="⏱ 0";
-  face.textContent="🙂";
+                        gridEl.innerHTML="";
+                          gridEl.style.gridTemplateColumns=`repeat(${size},1fr)`;
 
-  for(let i=0;i<size*size;i++)
-    grid.push({m:false,o:false,f:false,c:0});
+                            mines.textContent="💣 "+minesCount;
+                              time.textContent="⏱ 0";
+                                face.textContent="🙂";
 
-  let p=0;
-  while(p<minesCount){
-    let i=Math.random()*grid.length|0;
-    if(!grid[i].m){grid[i].m=true;p++;}
-  }
+                                  for(let i=0;i<size*size;i++)
+                                      grid.push({m:false,o:false,f:false,c:0});
 
-  for(let i=0;i<grid.length;i++)
-    if(!grid[i].m)
-      grid[i].c=nb(i).filter(n=>grid[n].m).length;
+                                        if(!levels[level].safe)
+                                            placeMines(); // для лёгкого — сразу
 
-  grid.forEach((_,i)=>{
-    const c=document.createElement("div");
-    c.className="cell";
-    addPointer(c,i);
-    c.onclick=()=>open(i,c);
-    c.oncontextmenu=e=>{e.preventDefault();flag(i,c);}
-    gridEl.appendChild(c);
-  });
+                                              grid.forEach((_,i)=>{
+                                                  const el=document.createElement("div");
+                                                      el.className="cell";
+                                                          addLongPress(el,i);
+                                                              el.onclick=()=>openCell(i,el);
+                                                                  el.oncontextmenu=e=>{e.preventDefault();toggleFlag(i,el);}
+                                                                      gridEl.appendChild(el);
+                                                                        });
 
-  interval=setInterval(()=>!gameOver&&(time.textContent="⏱ "+(++timer)),1000);
-}
+                                                                          interval=setInterval(()=>{
+                                                                              if(!gameOver) time.textContent="⏱ "+(++timer);
+                                                                                },1000);
+                                                                                }
 
-function nb(i){
-  let x=i%size,y=i/size|0,a=[];
-  for(let dy=-1;dy<=1;dy++)
-    for(let dx=-1;dx<=1;dx++){
-      if(!dx&&!dy)continue;
-      let nx=x+dx,ny=y+dy;
-      if(nx>=0&&ny>=0&&nx<size&&ny<size)a.push(ny*size+nx);
-    }
-  return a;
-}
+                                                                                /* ⛏️ Генерация мин с защитой первого клика */
+                                                                                function placeMines(excludeIndex){
+                                                                                  let forbidden = excludeIndex!==undefined
+                                                                                      ? getNeighbors(excludeIndex).concat(excludeIndex)
+                                                                                          : [];
 
-function open(i,e){
-  if(gameOver||grid[i].o||grid[i].f)return;
-  grid[i].o=true;
-  e.classList.add("open");
-  opened++;
+                                                                                            let placed=0;
+                                                                                              while(placed<minesCount){
+                                                                                                  let i=Math.random()*grid.length|0;
+                                                                                                      if(grid[i].m) continue;
+                                                                                                          if(forbidden.includes(i)) continue;
+                                                                                                              grid[i].m=true;
+                                                                                                                  placed++;
+                                                                                                                    }
 
-  if(grid[i].m){
-    explode();
-    return;
-  }
+                                                                                                                      for(let i=0;i<grid.length;i++){
+                                                                                                                          if(grid[i].m) continue;
+                                                                                                                              grid[i].c = getNeighbors(i).filter(n=>grid[n].m).length;
+                                                                                                                                }
+                                                                                                                                }
 
-  if(grid[i].c){
-    e.textContent=grid[i].c;
-    e.classList.add("n"+grid[i].c);
-  }else{
-    nb(i).forEach(n=>open(n,gridEl.children[n]));
-  }
+                                                                                                                                function getNeighbors(i){
+                                                                                                                                  const x=i%size,y=i/size|0,n=[];
+                                                                                                                                    for(let dy=-1;dy<=1;dy++)
+                                                                                                                                        for(let dx=-1;dx<=1;dx++){
+                                                                                                                                              if(!dx&&!dy)continue;
+                                                                                                                                                    let nx=x+dx,ny=y+dy;
+                                                                                                                                                          if(nx>=0&&ny>=0&&nx<size&&ny<size)
+                                                                                                                                                                  n.push(ny*size+nx);
+                                                                                                                                                                      }
+                                                                                                                                                                        return n;
+                                                                                                                                                                        }
 
-  if(opened===size*size-minesCount){
-    gameOver=true;
-    face.textContent="😎";
-  }
-}
+                                                                                                                                                                        function openCell(i,el){
+                                                                                                                                                                          if(gameOver||grid[i].o||grid[i].f) return;
 
-function explode(){
-  gameOver=true;
-  face.textContent="😵";
-  grid.forEach((c,i)=>{
-    if(c.m){
-      const el=gridEl.children[i];
-      el.textContent="💣";
-      el.classList.add("mine","open");
-    }
-  });
-}
+                                                                                                                                                                            if(firstClick && levels[level].safe){
+                                                                                                                                                                                placeMines(i);
+                                                                                                                                                                                    firstClick=false;
+                                                                                                                                                                                      }
 
-function flag(i,e){
-  if(gameOver||grid[i].o)return;
-  grid[i].f=!grid[i].f;
-  e.textContent=grid[i].f?"🚩":"";
-  flags+=grid[i].f?1:-1;
-  mines.textContent="💣 "+(minesCount-flags);
-}
+                                                                                                                                                                                        grid[i].o=true;
+                                                                                                                                                                                          el.classList.add("open");
+                                                                                                                                                                                            opened++;
 
-function addPointer(el,i){
-  let t;
-  el.onpointerdown=()=>t=setTimeout(()=>flag(i,el),450);
-  el.onpointerup=el.onpointerleave=el.onpointercancel=()=>clearTimeout(t);
-}
+                                                                                                                                                                                              if(grid[i].m){
+                                                                                                                                                                                                  explode();
+                                                                                                                                                                                                      return;
+                                                                                                                                                                                                        }
 
-b1.onclick=()=>start(0);
-b2.onclick=()=>start(1);
-b3.onclick=()=>start(2);
+                                                                                                                                                                                                          if(grid[i].c){
+                                                                                                                                                                                                              el.textContent=grid[i].c;
+                                                                                                                                                                                                                  el.classList.add("n"+grid[i].c);
+                                                                                                                                                                                                                    }else{
+                                                                                                                                                                                                                        getNeighbors(i).forEach(n=>{
+                                                                                                                                                                                                                              openCell(n, gridEl.children[n]);
+                                                                                                                                                                                                                                  });
+                                                                                                                                                                                                                                    }
 
-start(0);
-</script>
+                                                                                                                                                                                                                                      if(opened === size*size - minesCount){
+                                                                                                                                                                                                                                          gameOver=true;
+                                                                                                                                                                                                                                              face.textContent="😎";
+                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                }
+
+                                                                                                                                                                                                                                                function explode(){
+                                                                                                                                                                                                                                                  gameOver=true;
+                                                                                                                                                                                                                                                    face.textContent="😵";
+                                                                                                                                                                                                                                                      grid.forEach((c,i)=>{
+                                                                                                                                                                                                                                                          if(c.m){
+                                                                                                                                                                                                                                                                const el=gridEl.children[i];
+                                                                                                                                                                                                                                                                      el.textContent="💣";
+                                                                                                                                                                                                                                                                            el.classList.add("mine","open");
+                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                  });
+                                                                                                                                                                                                                                                                                  }
+
+                                                                                                                                                                                                                                                                                  /* 🚩 Флаг: удержание 1 сек */
+                                                                                                                                                                                                                                                                                  function toggleFlag(i,el){
+                                                                                                                                                                                                                                                                                    if(gameOver||grid[i].o) return;
+                                                                                                                                                                                                                                                                                      grid[i].f = !grid[i].f;
+                                                                                                                                                                                                                                                                                        el.textContent = grid[i].f ? "🚩" : "";
+                                                                                                                                                                                                                                                                                          flags += grid[i].f ? 1 : -1;
+                                                                                                                                                                                                                                                                                            mines.textContent="💣 "+(minesCount-flags);
+                                                                                                                                                                                                                                                                                            }
+
+                                                                                                                                                                                                                                                                                            function addLongPress(el,i){
+                                                                                                                                                                                                                                                                                              let timer;
+                                                                                                                                                                                                                                                                                                el.onpointerdown=()=>{
+                                                                                                                                                                                                                                                                                                    timer=setTimeout(()=>{
+                                                                                                                                                                                                                                                                                                          toggleFlag(i,el);
+                                                                                                                                                                                                                                                                                                              },1000);
+                                                                                                                                                                                                                                                                                                                };
+                                                                                                                                                                                                                                                                                                                  el.onpointerup=
+                                                                                                                                                                                                                                                                                                                    el.onpointerleave=
+                                                                                                                                                                                                                                                                                                                      el.onpointercancel=()=>{
+                                                                                                                                                                                                                                                                                                                          clearTimeout(timer);
+                                                                                                                                                                                                                                                                                                                            };
+                                                                                                                                                                                                                                                                                                                            }
+
+                                                                                                                                                                                                                                                                                                                            /* Кнопки */
+                                                                                                                                                                                                                                                                                                                            b1.onclick=()=>start(0);
+                                                                                                                                                                                                                                                                                                                            b2.onclick=()=>start(1);
+                                                                                                                                                                                                                                                                                                                            b3.onclick=()=>start(2);
+
+                                                                                                                                                                                                                                                                                                                            start(0);
+                                                                                                                                                                                                                                                                                                                            </script>
 
 </body>
 </html>

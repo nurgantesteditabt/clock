@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>💣 Мобильный Сапёр</title>
+
+<style>
+:root{
+  --bg:#0e1024;
+  --panel:#1a1e40;
+  --cell:#2b2f63;
+  --cell-open:#40458c;
+  --accent:#6cf;
+  --danger:#ff6b6b;
+}
+*{
+  box-sizing:border-box;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  -webkit-tap-highlight-color:transparent;
+}
+body{
+  margin:0;
+  background:radial-gradient(circle at top,var(--panel),var(--bg));
+  color:#fff;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+}
+.game{
+  background:var(--panel);
+  padding:16px;
+  border-radius:16px;
+  box-shadow:0 20px 40px rgba(0,0,0,.4);
+}
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+.counter{
+  background:#000;
+  padding:6px 10px;
+  border-radius:8px;
+  font-weight:bold;
+  color:var(--accent);
+  min-width:70px;
+  text-align:center;
+}
+button{
+  background:var(--accent);
+  border:none;
+  border-radius:50%;
+  width:42px;
+  height:42px;
+  font-size:20px;
+}
+.grid{
+  display:grid;
+  gap:6px;
+  justify-content:center;
+}
+.cell{
+  width:42px;
+  height:42px;
+  background:linear-gradient(145deg,#343a7a,#242861);
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  user-select:none;
+  transition:.15s;
+}
+.cell.open{
+  background:var(--cell-open);
+}
+.cell.mine{background:var(--danger)}
+.cell.flag{color:gold}
+.n1{color:#6cf}
+.n2{color:#6f6}
+.n3{color:#f66}
+.n4{color:#c9f}
+
+.footer{
+  margin-top:8px;
+  font-size:12px;
+  opacity:.75;
+  text-align:center;
+}
+
+/* 📱 Адаптация под телефоны */
+@media (max-width:480px){
+  .cell{
+    width:9vw;
+    height:9vw;
+    max-width:44px;
+    max-height:44px;
+    font-size:4vw;
+  }
+  .grid{
+    gap:4px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="game">
+  <div class="header">
+    <div class="counter" id="mines">💣 10</div>
+    <button id="reset">🙂</button>
+    <div class="counter" id="time">⏱ 0</div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="footer">
+    Тап — открыть • Долгий тап — флаг
+  </div>
+</div>
+
+<script>
+const size = 9;
+const mineCount = 10;
+let grid=[], opened=0, flags=0;
+let timer=0, interval, gameOver=false;
+
+const gridEl = document.getElementById("grid");
+gridEl.style.gridTemplateColumns = `repeat(${size},1fr)`;
+
+function start(){
+  grid=[]; opened=0; flags=0; timer=0; gameOver=false;
+  clearInterval(interval);
+  gridEl.innerHTML="";
+  document.getElementById("reset").textContent="🙂";
+  document.getElementById("time").textContent="⏱ 0";
+  document.getElementById("mines").textContent="💣 "+mineCount;
+
+  for(let i=0;i<size*size;i++)
+    grid.push({mine:false,open:false,flag:false,count:0});
+
+  let placed=0;
+  while(placed<mineCount){
+    let i=Math.floor(Math.random()*grid.length);
+    if(!grid[i].mine){grid[i].mine=true; placed++;}
+  }
+
+  for(let i=0;i<grid.length;i++){
+    if(grid[i].mine) continue;
+    grid[i].count = neighbors(i).filter(n=>grid[n].mine).length;
+  }
+
+  grid.forEach((_,i)=>{
+    const c=document.createElement("div");
+    c.className="cell";
+    addTouchControls(c,i);
+    c.onclick=()=>openCell(i,c);
+    c.oncontextmenu=e=>{e.preventDefault(); toggleFlag(i,c);}
+    gridEl.appendChild(c);
+  });
+
+  interval=setInterval(()=>{
+    if(!gameOver)
+      document.getElementById("time").textContent="⏱ "+(++timer);
+  },1000);
+}
+
+function neighbors(i){
+  const x=i%size,y=Math.floor(i/size),n=[];
+  for(let dy=-1;dy<=1;dy++)
+    for(let dx=-1;dx<=1;dx++){
+      if(!dx&&!dy)continue;
+      let nx=x+dx,ny=y+dy;
+      if(nx>=0&&ny>=0&&nx<size&&ny<size)
+        n.push(ny*size+nx);
+    }
+  return n;
+}
+
+function openCell(i,el){
+  if(gameOver||grid[i].open||grid[i].flag) return;
+  grid[i].open=true;
+  el.classList.add("open");
+  opened++;
+
+  if(grid[i].mine){
+    el.textContent="💣";
+    el.classList.add("mine");
+    end(false); return;
+  }
+
+  if(grid[i].count){
+    el.textContent=grid[i].count;
+    el.classList.add("n"+grid[i].count);
+  }else{
+    neighbors(i).forEach(n=>{
+      openCell(n, gridEl.children[n]);
+    });
+  }
+
+  if(opened===size*size-mineCount) end(true);
+}
+
+function toggleFlag(i,el){
+  if(gameOver||grid[i].open) return;
+  grid[i].flag=!grid[i].flag;
+  el.textContent = grid[i].flag ? "🚩" : "";
+  el.classList.toggle("flag");
+  flags += grid[i].flag ? 1 : -1;
+  document.getElementById("mines").textContent="💣 "+(mineCount-flags);
+}
+
+function end(win){
+  gameOver=true;
+  document.getElementById("reset").textContent = win ? "😎" : "😵";
+  grid.forEach((c,i)=>{
+    if(c.mine){
+      const el=gridEl.children[i];
+      el.textContent="💣";
+      el.classList.add("open");
+    }
+  });
+}
+
+/* 📱 Долгий тап для флага */
+function addTouchControls(el,i){
+  let timer;
+  el.addEventListener("touchstart",()=>{
+    timer=setTimeout(()=>toggleFlag(i,el),400);
+  });
+  el.addEventListener("touchend",()=>clearTimeout(timer));
+}
+
+document.getElementById("reset").onclick=start;
+start();
+</script>
+
+</body>
+</html>

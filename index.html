@@ -1,336 +1,248 @@
+
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>💣 Minesweeper</title>
-
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@200..900&display=swap');
-
-:root{
-  --bg:#0e1024;
-  --panel:#1a1e40;
-  --cell:#2b2f63;
-  --cell-open:#40458c;
-  --accent:#6cf;
-  --danger:#ff4d4d;
-  --success:#4caf50;
-}
-
-*{
-  box-sizing:border-box;
-  font-family:"Unbounded", sans-serif;
-  -webkit-tap-highlight-color:transparent;
-}
-
-body{
-  margin:0;
-  background:radial-gradient(circle at top,var(--panel),var(--bg));
-  color:#fff;
-  height:100vh;
-  overflow:hidden;
-}
-
-/* 🔝 NAV BAR */
-.navbar{
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  height:64px;
-  background:rgba(0,0,0,.35);
-  backdrop-filter:blur(10px);
-  display:flex;
-  align-items:center;
-  justify-content:space-around;
-  z-index:10;
-}
-
-.counter{
-  background:#000;
-  padding:6px 12px;
-  border-radius:10px;
-  font-weight:600;
-  color:var(--accent);
-}
-
-.face{
-  font-size:26px;
-}
-
-/* 📜 CONTENT */
-.content{
-  position:absolute;
-  top:64px;
-  bottom:0;
-  left:0;
-  right:0;
-  overflow:auto;
-  padding:10px;
-}
-
-/* 🎚 LEVEL BUTTONS */
-.controls{
-  display:flex;
-  gap:8px;
-  margin-bottom:10px;
-  flex-wrap:wrap;
-}
-
-button{
-  background:var(--accent);
-  border:none;
-  border-radius:10px;
-  padding:8px 14px;
-  font-weight:600;
-  cursor:pointer;
-}
-
-button.done{
-  background:var(--success);
-  color:#000;
-}
-
-/* 🧩 GRID WRAPPER */
-.grid-wrapper{
-  overflow:auto;
-  max-width:100%;
-}
-
-/* 🧩 GRID */
-.grid{
-  display:grid;
-  gap:4px;
-}
-
-/* 🟦 CELL */
-.cell{
-  width:32px;
-  height:32px;
-  background:linear-gradient(145deg,#343a7a,#242861);
-  border-radius:8px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:700;
-  user-select:none;
-  touch-action:manipulation;
-}
-
-.cell.open{background:var(--cell-open)}
-.cell.mine{background:var(--danger)}
-.cell.flag{color:gold}
-
-/* 🔢 NUM COLORS */
-.n1{color:#4fc3ff}
-.n2{color:#4cff4c}
-.n3{color:#ff4c4c}
-.n4{color:#5fa8ff}
-.n5{color:#c68642}
-.n6{color:#9b59b6}
-.n7{color:#000}
-.n8{color:#ccc}
-
-/* 📱 MOBILE SCALE */
-@media(max-width:600px){
-  .cell{
-    width:8vw;
-    height:8vw;
-    max-width:34px;
-    max-height:34px;
-    font-size:3.8vw;
-  }
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Burning Candle Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; font-family: sans-serif; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            pointer-events: none;
+            user-select: none;
+        }
+        h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; }
+        p { font-size: 0.8rem; margin-top: 5px; }
+        #reset-btn {
+            pointer-events: auto;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        #reset-btn:hover { background: rgba(255, 255, 255, 0.3); }
+    </style>
 </head>
-
 <body>
 
-<div class="navbar">
-  <div class="counter" id="mines">💣 0</div>
-  <div class="face" id="face">🙂</div>
-  <div class="counter" id="time">⏱ 0</div>
+<div id="ui">
+    <h1>Candle Simulation</h1>
+    <p>Watch it burn. Drag to rotate, alihan is durak</p>
+    <button id="reset-btn">Reset Candle</button>
 </div>
 
-<div class="content">
-
-  <div class="controls">
-    <button id="b1">Лёгкий</button>
-    <button id="b2">Сложный</button>
-    <button id="b3">Хардкор</button>
-  </div>
-
-  <div class="grid-wrapper">
-    <div class="grid" id="grid"></div>
-  </div>
-
-</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
-  const levels = [
-    { s:10, m:0.12, safe:false }, // Лёгкий
-      { s:22, m:0.05, safe:true  }, // Сложный
-        { s:50, m:0.05, safe:true  }  // Хардкор
-        ];
+    // --- Configuration ---
+    const CONFIG = {
+        meltSpeed: 0.0003,      // How fast the candle burns
+        flameFlickerSpeed: 0.1, // Speed of flame animation
+        waxColor: 0xfff5e1,     // Creamy white
+        flameColor: 0xffaa00,   // Orange/Yellow
+        bgColor: 0x111111
+    };
 
-        let level=0, size, minesCount;
-        let grid=[], opened=0, flags=0;
-        let gameOver=false, timer=0, interval;
-        let firstClick=true;
+    // --- Scene Setup ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(CONFIG.bgColor);
+    scene.fog = new THREE.Fog(CONFIG.bgColor, 10, 50);
 
-        const gridEl = document.getElementById("grid");
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 15, 25);
 
-        function start(l){
-          level=l;
-            clearInterval(interval);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
 
-              size = levels[level].s;
-                minesCount = Math.floor(size*size*levels[level].m);
+    // --- Controls ---
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.minPolarAngle = 0;
+    controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below table
+    controls.target.set(0, 2, 0);
 
-                  grid=[]; opened=0; flags=0;
-                    gameOver=false; timer=0;
-                      firstClick=true;
+    // --- Lighting ---
+    // 1. Ambient light (very dim, simulated night)
+    const ambientLight = new THREE.AmbientLight(0x404060, 0.2);
+    scene.add(ambientLight);
 
-                        gridEl.innerHTML="";
-                          gridEl.style.gridTemplateColumns=`repeat(${size},1fr)`;
+    // 2. The Flame Light (Dynamic PointLight)
+    const flameLight = new THREE.PointLight(0xff6600, 1, 20);
+    flameLight.castShadow = true;
+    flameLight.shadow.bias = -0.001;
+    scene.add(flameLight);
 
-                            mines.textContent="💣 "+minesCount;
-                              time.textContent="⏱ 0";
-                                face.textContent="🙂";
+    // --- Objects ---
 
-                                  for(let i=0;i<size*size;i++)
-                                      grid.push({m:false,o:false,f:false,c:0});
+    // 1. Table/Floor
+    const planeGeometry = new THREE.PlaneGeometry(100, 100);
+    const planeMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x222222, 
+        roughness: 0.8,
+        metalness: 0.2
+    });
+    const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+    plane.rotation.x = -Math.PI / 2;
+    plane.receiveShadow = true;
+    scene.add(plane);
 
-                                        if(!levels[level].safe)
-                                            placeMines(); // для лёгкого — сразу
+    // Group to hold candle parts
+    const candleGroup = new THREE.Group();
+    scene.add(candleGroup);
 
-                                              grid.forEach((_,i)=>{
-                                                  const el=document.createElement("div");
-                                                      el.className="cell";
-                                                          addLongPress(el,i);
-                                                              el.onclick=()=>openCell(i,el);
-                                                                  el.oncontextmenu=e=>{e.preventDefault();toggleFlag(i,el);}
-                                                                      gridEl.appendChild(el);
-                                                                        });
+    // 2. Candle Body (Wax)
+    // We translate the geometry so the pivot point is at the bottom (y=0)
+    // This makes scaling the height easier (it shrinks downwards).
+    const candleHeight = 8;
+    const candleRadius = 1.5;
+    const candleGeo = new THREE.CylinderGeometry(candleRadius, candleRadius, candleHeight, 32);
+    candleGeo.translate(0, candleHeight / 2, 0); 
+    
+    const waxMaterial = new THREE.MeshStandardMaterial({
+        color: CONFIG.waxColor,
+        roughness: 0.3,
+        metalness: 0.1,
+        transparent: true,
+        opacity: 0.95
+    });
+    const candleMesh = new THREE.Mesh(candleGeo, waxMaterial);
+    candleMesh.castShadow = true;
+    candleMesh.receiveShadow = true;
+    candleGroup.add(candleMesh);
 
-                                                                          interval=setInterval(()=>{
-                                                                              if(!gameOver) time.textContent="⏱ "+(++timer);
-                                                                                },1000);
-                                                                                }
+    // 3. The Wick
+    const wickHeight = 0.8;
+    const wickGeo = new THREE.CylinderGeometry(0.05, 0.05, wickHeight, 8);
+    const wickMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const wickMesh = new THREE.Mesh(wickGeo, wickMat);
+    candleGroup.add(wickMesh);
 
-                                                                                /* ⛏️ Генерация мин с защитой первого клика */
-                                                                                function placeMines(excludeIndex){
-                                                                                  let forbidden = excludeIndex!==undefined
-                                                                                      ? getNeighbors(excludeIndex).concat(excludeIndex)
-                                                                                          : [];
+    // 4. The Flame (Visual)
+    // A simple deformed sphere to look like a teardrop
+    const flameGeo = new THREE.SphereGeometry(0.3, 16, 16);
+    // Scale it to look like a flame shape
+    flameGeo.scale(1, 2.5, 1);
+    
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xffdd00 });
+    const flameMesh = new THREE.Mesh(flameGeo, flameMat);
+    candleGroup.add(flameMesh);
 
-                                                                                            let placed=0;
-                                                                                              while(placed<minesCount){
-                                                                                                  let i=Math.random()*grid.length|0;
-                                                                                                      if(grid[i].m) continue;
-                                                                                                          if(forbidden.includes(i)) continue;
-                                                                                                              grid[i].m=true;
-                                                                                                                  placed++;
-                                                                                                                    }
+    // 5. Wax Pool (The melted wax at the bottom)
+    const poolGeo = new THREE.CylinderGeometry(candleRadius, candleRadius + 0.5, 0.1, 32);
+    poolGeo.translate(0, 0.05, 0); // Sit just above table
+    const poolMesh = new THREE.Mesh(poolGeo, waxMaterial);
+    poolMesh.scale.set(1, 1, 1);
+    poolMesh.visible = true;
+    scene.add(poolMesh); // Add to scene, not candle group, so it stays flat on table
 
-                                                                                                                      for(let i=0;i<grid.length;i++){
-                                                                                                                          if(grid[i].m) continue;
-                                                                                                                              grid[i].c = getNeighbors(i).filter(n=>grid[n].m).length;
-                                                                                                                                }
-                                                                                                                                }
+    // --- Animation State ---
+    let isBurning = true;
+    let time = 0;
+    
+    // Function to update the scene based on burn progress
+    function updateCandle() {
+        if (!isBurning) return;
 
-                                                                                                                                function getNeighbors(i){
-                                                                                                                                  const x=i%size,y=i/size|0,n=[];
-                                                                                                                                    for(let dy=-1;dy<=1;dy++)
-                                                                                                                                        for(let dx=-1;dx<=1;dx++){
-                                                                                                                                              if(!dx&&!dy)continue;
-                                                                                                                                                    let nx=x+dx,ny=y+dy;
-                                                                                                                                                          if(nx>=0&&ny>=0&&nx<size&&ny<size)
-                                                                                                                                                                  n.push(ny*size+nx);
-                                                                                                                                                                      }
-                                                                                                                                                                        return n;
-                                                                                                                                                                        }
+        // 1. Melt the candle (Shrink Y scale)
+        if (candleMesh.scale.y > 0.05) {
+            candleMesh.scale.y -= CONFIG.meltSpeed;
+        } else {
+            // Candle finished
+            candleMesh.scale.y = 0.05;
+            isBurning = false;
+            // Extinguish flame smoothly
+            flameMesh.visible = false;
+            flameLight.intensity = 0;
+            return;
+        }
 
-                                                                                                                                                                        function openCell(i,el){
-                                                                                                                                                                          if(gameOver||grid[i].o||grid[i].f) return;
+        const currentHeight = candleHeight * candleMesh.scale.y;
 
-                                                                                                                                                                            if(firstClick && levels[level].safe){
-                                                                                                                                                                                placeMines(i);
-                                                                                                                                                                                    firstClick=false;
-                                                                                                                                                                                      }
+        // 2. Update Wick Position (Always sits on top of candle)
+        wickMesh.position.y = currentHeight + (wickHeight / 2) - 0.2; // -0.2 to embed slightly
 
-                                                                                                                                                                                        grid[i].o=true;
-                                                                                                                                                                                          el.classList.add("open");
-                                                                                                                                                                                            opened++;
+        // 3. Update Flame Position (Sits on top of wick)
+        const flameBaseY = currentHeight + wickHeight;
+        flameMesh.position.y = flameBaseY;
+        
+        // 4. Update Light Position
+        flameLight.position.set(0, flameBaseY + 0.5, 0);
 
-                                                                                                                                                                                              if(grid[i].m){
-                                                                                                                                                                                                  explode();
-                                                                                                                                                                                                      return;
-                                                                                                                                                                                                        }
+        // 5. Grow the wax pool
+        // As candle shrinks (scale goes 1 -> 0), pool grows (scale 1 -> 2.5)
+        const meltedAmount = 1 - candleMesh.scale.y;
+        const poolScale = 1 + (meltedAmount * 1.5);
+        poolMesh.scale.set(poolScale, 1, poolScale);
+    }
 
-                                                                                                                                                                                                          if(grid[i].c){
-                                                                                                                                                                                                              el.textContent=grid[i].c;
-                                                                                                                                                                                                                  el.classList.add("n"+grid[i].c);
-                                                                                                                                                                                                                    }else{
-                                                                                                                                                                                                                        getNeighbors(i).forEach(n=>{
-                                                                                                                                                                                                                              openCell(n, gridEl.children[n]);
-                                                                                                                                                                                                                                  });
-                                                                                                                                                                                                                                    }
+    function flickerFlame() {
+        if (!isBurning) return;
 
-                                                                                                                                                                                                                                      if(opened === size*size - minesCount){
-                                                                                                                                                                                                                                          gameOver=true;
-                                                                                                                                                                                                                                              face.textContent="😎";
-                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                }
+        // Simple noise for flickering
+        const noise = Math.sin(time * 20) * Math.cos(time * 12);
+        const intensityNoise = Math.random() * 0.2;
 
-                                                                                                                                                                                                                                                function explode(){
-                                                                                                                                                                                                                                                  gameOver=true;
-                                                                                                                                                                                                                                                    face.textContent="😵";
-                                                                                                                                                                                                                                                      grid.forEach((c,i)=>{
-                                                                                                                                                                                                                                                          if(c.m){
-                                                                                                                                                                                                                                                                const el=gridEl.children[i];
-                                                                                                                                                                                                                                                                      el.textContent="💣";
-                                                                                                                                                                                                                                                                            el.classList.add("mine","open");
-                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                                  });
-                                                                                                                                                                                                                                                                                  }
+        // Flicker Light Intensity
+        flameLight.intensity = 1.2 + intensityNoise;
+        
+        // Flicker Light Position slightly (makes shadows dance)
+        flameLight.position.x = Math.sin(time * 5) * 0.05;
+        flameLight.position.z = Math.cos(time * 4) * 0.05;
 
-                                                                                                                                                                                                                                                                                  /* 🚩 Флаг: удержание 1 сек */
-                                                                                                                                                                                                                                                                                  function toggleFlag(i,el){
-                                                                                                                                                                                                                                                                                    if(gameOver||grid[i].o) return;
-                                                                                                                                                                                                                                                                                      grid[i].f = !grid[i].f;
-                                                                                                                                                                                                                                                                                        el.textContent = grid[i].f ? "🚩" : "";
-                                                                                                                                                                                                                                                                                          flags += grid[i].f ? 1 : -1;
-                                                                                                                                                                                                                                                                                            mines.textContent="💣 "+(minesCount-flags);
-                                                                                                                                                                                                                                                                                            }
+        // Scale Flame Mesh (Squash and stretch)
+        const s = 1 + (noise * 0.1);
+        flameMesh.scale.set(s, s * 1.1, s);
+        
+        // Change flame color slightly
+        const gComponent = 0.5 + (noise * 0.1); // Green component modulates yellow/red
+        flameMesh.material.color.setRGB(1, gComponent, 0);
+    }
 
-                                                                                                                                                                                                                                                                                            function addLongPress(el,i){
-                                                                                                                                                                                                                                                                                              let timer;
-                                                                                                                                                                                                                                                                                                el.onpointerdown=()=>{
-                                                                                                                                                                                                                                                                                                    timer=setTimeout(()=>{
-                                                                                                                                                                                                                                                                                                          toggleFlag(i,el);
-                                                                                                                                                                                                                                                                                                              },700);
-                                                                                                                                                                                                                                                                                                                };
-                                                                                                                                                                                                                                                                                                                  el.onpointerup=
-                                                                                                                                                                                                                                                                                                                    el.onpointerleave=
-                                                                                                                                                                                                                                                                                                                      el.onpointercancel=()=>{
-                                                                                                                                                                                                                                                                                                                          clearTimeout(timer);
-                                                                                                                                                                                                                                                                                                                            };
-                                                                                                                                                                                                                                                                                                                            }
+    function animate() {
+        requestAnimationFrame(animate);
 
-                                                                                                                                                                                                                                                                                                                            /* Кнопки */
-                                                                                                                                                                                                                                                                                                                            b1.onclick=()=>start(0);
-                                                                                                                                                                                                                                                                                                                            b2.onclick=()=>start(1);
-                                                                                                                                                                                                                                                                                                                            b3.onclick=()=>start(2);
+        time += CONFIG.flameFlickerSpeed;
 
-                                                                                                                                                                                                                                                                                                                            start(0);
-                                                                                                                                                                                                                                                                                                                            </script>
+        updateCandle();
+        flickerFlame();
+        controls.update();
 
+        renderer.render(scene, camera);
+    }
+
+    // --- Resize Handler ---
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- Reset Functionality ---
+    document.getElementById('reset-btn').addEventListener('click', () => {
+        candleMesh.scale.y = 1;
+        poolMesh.scale.set(1, 1, 1);
+        isBurning = true;
+        flameMesh.visible = true;
+        flameLight.intensity = 1.2;
+    });
+
+    // Start
+    animate();
+
+</script>
 </body>
-</html>
-
-                                                                                                                                                                                                                              
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                              
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+  </html>
+  
